@@ -1,0 +1,32 @@
+{
+  "name": "gulp-renew-cached-static",
+  "version": "0.0.1",
+  "description": "Adds versioning GET-parameters (path/to/file/file_name.js?v=0.0.1) to entry static asset dependant HTML files. If they are exists - increase version count. Supposed to be used on pre-commit hook.",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theConscience/gulp-renew-cached-static.git"
+  },
+  "keywords": [
+    "gulp",
+    "plugin",
+    "renew",
+    "cache",
+    "static",
+    "assets",
+    "revisioning",
+    "revisioning",
+    "versioning",
+    "cached",
+    "static"
+  ],
+  "author": "Victor Kaptsov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/theConscience/gulp-renew-cached-static/issues"
+  },
+  "homepage": "https://github.com/theConscience/gulp-renew-cached-static#readme"
+}
