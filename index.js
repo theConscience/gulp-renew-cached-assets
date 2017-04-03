@@ -263,11 +263,17 @@ module.exports = function(option) {
 
       var dependentHTMLs = shell.grep('-l', '{{ static_url }}external/js/', 'templates/*/*.html');
 
-      if (!dependentHTMLs) {
-        console.log('This asset: ' + file.base + ' has no dependent HTML files!')
+      // if (!dependentHTMLs) {
+      //   new gutil.log(('This asset: ' + file.base + ' has no dependent HTML files!')
+      // } else {
+      //   new gutil.log(('$$$ GREP SUCCESS $$$');
+      //   new gutil.log(('Asset ' + file.base + ' has dependent HTMLs!\n' + dependentHTMLs);
+      // }
+
+      if (shell.exec("grep -il '{{ static_url }}external/js/' 'templates/*/*.html'").code !== 0) {
+        new gutil.log(('This asset: ' + file.base + ' has no dependent HTML files!');
       } else {
-        console.log('$$$ GREP SUCCESS $$$');
-        console.log('Asset ' + file.base + ' has dependent HTMLs!\n' + dependentHTMLs);
+        new gutil.log(('$$$ GREP SUCCESS $$$');
       }
 
       this.push(file);
