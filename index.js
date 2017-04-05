@@ -323,6 +323,13 @@ module.exports = function(option) {
               console.log(clearedHtmlFileContent);
             }
             fs.writeFileSync(htmlFileName, clearedHtmlFileContent);
+
+            if (option.use_git_add) {
+              var gitAddCommand = 'git add ' + htmlFileName;
+              if (logger.IMPORTANT) { console.log('gitAddCommand:', gitAddCommand); }
+              shell.exec(gitAddCommand);
+            }
+
             return;
           }
           var newVersionGETParam = createVersionGETParam(taskStartTimeStamp, initialVersionNumber);
