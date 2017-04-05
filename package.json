@@ -1,6 +1,6 @@
 {
   "name": "gulp-renew-cached-assets",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Adds versioning GET-parameters (path/to/file/file_name.js?v=0.0.1) to entry static asset dependant HTML files. If they are exists - increase version count. Supposed to be used on pre-commit hook.",
   "main": "index.js",
   "scripts": {

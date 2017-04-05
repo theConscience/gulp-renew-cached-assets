@@ -309,7 +309,15 @@ module.exports = function(option) {
 
             return;
           }
-          var newVersionGETParam = createVersionGETParam(taskStartTimeStamp, initialVersionNumber);
+          var newVersionGETParam = '';
+          if (option.version_stamp === 'date') {
+            newVersionGETParam = createDateGETParam(taskStartDate);
+          } else if (option.version_stamp === 'date.time') {
+            newVersionGETParam = createDateTimeGETParam(taskStartDate + '.' + taskStartTime);
+          } else {
+            newVersionGETParam = createVersionGETParam(taskStartTimeStamp, initialVersionNumber);
+          }
+
           var versionMatchesArr = htmlFileContent.match(assetPattern + VERSION_OF_ASSET_PATTERN, 'gi');
           if (logger.DETAILED) { console.log('versionMatchesArr:', versionMatchesArr); }
           if (versionMatchesArr) {
@@ -321,21 +329,19 @@ module.exports = function(option) {
                 var todaysVersionDate = getVersionDate(versionGETParam);
                 if (logger.IMPORTANT) { console.log('todaysVersionDate:', todaysVersionDate); }
                 if (todaysVersionDate === taskStartDate) {
-                  // newVersionGETParam = versionGETParam;
-                  return;
+                  newVersionGETParam = '?v=' + versionGETParam;
+                  // return;
                 } else {
-                  newVersionGETParam = createDateGETParam(taskStartDate);
-                  if (logger.IMPORTANT) { console.log('newVersionGETParam:', newVersionGETParam); }
+                  if (logger.IMPORTANT) { console.log('No version date GET parameter!, Use initial:', newVersionGETParam); }
                 }
               } else if (option.version_stamp === 'date.time') {
                 if (logger.IMPORTANT) { console.log('Setting date.time as version stamp!'); }
                 if (versionGETParam === taskStartDate + '.' + taskStartTime) {
                   console.log('\n!!!!!\nSTRANGE BEHVIOUR!!! \n!!!!!\n');
-                  // newVersionGETParam = versionGETParam;
-                  return;
+                  newVersionGETParam = '?v=' + versionGETParam;
+                  // return;
                 } else {
-                  newVersionGETParam = createDateTimeGETParam(taskStartDate + '.' + taskStartTime);
-                  if (logger.IMPORTANT) { console.log('newVersionGETParam:', newVersionGETParam); }
+                  if (logger.IMPORTANT) { console.log('No version date.time GET parameter!, Use initial:', newVersionGETParam); }
                 }
               } else if (option.version_stamp === 'number.timestamp') {
                 if (logger.IMPORTANT) { console.log('Setting number.timestamp as version stamp!'); }
