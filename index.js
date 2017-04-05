@@ -8,12 +8,17 @@ var shell = require('shelljs');
 
 module.exports = function(option) {
   'use strict';
-  var logger = true;
+
+  var logger = {
+    DETAILED: false,
+    IMPORTANT: false
+  };
 
   var CONST_PATTERN = '<\\!--\\s*inject-style\\s*(.*?)\\s*-->';
   var CSS_LINK_PATTERN = '<link\\s*(.*?)\\s*>'; //'<link href='([^\\.]\\.css)'[^>]*>';
   var JS_SCRIPT_PATTERN = '<script\\s*(.*?)\\s*></script>';
 
+  var ASSET_ATTR_SUFFIX_PATTERN = '([^\'\\"]*)';
   var VERSION_OF_ASSET_PATTERN = '\\?v=(.*?)(?=[\'"])';
 
   var JS_SCRIPT_PATTERN_2 = '<script(\\s*(\\S*)(?==)="([^"]*)(?=")")+\\s*></script>';
@@ -99,6 +104,22 @@ module.exports = function(option) {
     option.static_url_path = '';
   }
 
+  if (option.static_assets_dir) {
+    try {
+      option.static_assets_dir = option.static_assets_dir.toString();
+    } catch (e) {
+      this.emit(
+        'error',
+        new gutil.PluginError(
+          'gulp-renew-cached-assets',
+          ' Invalid `static_assets_dir` parameter. String required.'
+        )
+      );
+    }
+  } else {
+    option.static_assets_dir = '';
+  }
+
   if (option.django_static_variable) {
     try {
       option.django_static_variable = '{{ ' +
@@ -133,90 +154,65 @@ module.exports = function(option) {
     option.django_ext_variable = '{{ STATIC_EXT }}';
   }
 
-  console.log('option.path = ' + option.path);
-  console.log('option.css_match_pattern = ' + option.css_match_pattern);
-  console.log('option.js_match_pattern = ' + option.js_match_pattern);
-  console.log('option.static_url_path = ' + option.static_url_path);
-  console.log(
-    'option.django_static_variable = ' + option.django_static_variable
-  );
-  console.log('option.django_ext_variable = ' + option.django_ext_variable);
+  if (option.prepend_static_path) {
+    option.prepend_static_path = option.prepend_static_path.toString();
+  } else {
+    option.prepend_static_path = '/';
+  }
+
+  if (option.html_templates_dir) {
+    option.html_templates_dir = '' + option.html_templates_dir;
+  } else {
+    option.html_templates_dir = '';
+  }
+
+  var ignoredTemplatesDirs = '';
+  if (option.ignored_templates_dirs) {
+    var ignoredTemplatesDirsArr = option.ignored_templates_dirs.map(function(dir) {
+      return dir.replace(new RegExp(option.static_assets_dir, 'gi'), '');
+    });
+    ignoredTemplatesDirs = ignoredTemplatesDirsArr.join(',');
+  }
+
+  if (option.clear_assets_get_params) {
+    option.clear_assets_get_params = option.clear_assets_get_params;
+  }
+
+  if (option.use_git_add) {
+    option.use_git_add = option.use_git_add;
+  }
+
+  if (option.log === 'detailed') {
+    logger.DETAILED = true;
+    logger.IMPORTANT = true;
+  }
+
+  if (option.log === 'important') {
+    logger.IMPORTANT = true;
+  }
+
+  if (logger.IMPORTANT) {
+    console.log('option.path = ' + option.path);
+    console.log('option.css_match_pattern = ' + option.css_match_pattern);
+    console.log('option.js_match_pattern = ' + option.js_match_pattern);
+    console.log('option.static_url_path = ' + option.static_url_path);
+    console.log('option.django_static_variable = ' + option.django_static_variable);
+    console.log('option.django_ext_variable = ' + option.django_ext_variable);
+    console.log('option.prepend_static_path = ' + option.prepend_static_path);
+    console.log('option.static_assets_dir = ' + option.static_assets_dir);
+    console.log('option.html_templates_dir = ' + option.html_templates_dir);
+    console.log('option.ignored_templates_dirs = ' + option.ignored_templates_dirs);
+    console.log('ignoredTemplatesDirs = ' + ignoredTemplatesDirs);
+    console.log('option.clear_assets_get_params = ' + option.clear_assets_get_params);
+    console.log('option.use_git_add = ' + option.use_git_add)
+  }
 
   function throwError(msg) {
     self.emit('error', new gutil.PluginError('gulp-renew-cached-assets', msg));
   }
 
-  function getAttributes(params) {
-    new gutil.log('getAttributes get such parameters:' + params);
-
-    if (params.indexOf(option.django_static_variable) !== -1) {
-      params = params.replace(
-        option.django_static_variable,
-        option.static_url_path
-      );
-      new gutil.log('django_static_variable replaced, params is: ' + params);
-    }
-    if (params.indexOf(option.django_ext_variable) !== -1) {
-      params = params.replace(option.django_ext_variable, '');
-      new gutil.log('django_ext_variable deleted, params is: ' + params);
-    }
-
-    var result = {};
-
-    params = params.replace(
-      new RegExp(VERSION_OF_ASSET_PATTERN, 'gi'),
-      function(str, version) {
-        // вырезаем версию, если есть
-        result['version'] = version;
-        if (logger) {
-          console.log(
-            'version ' +
-              version +
-              ' found, remove from attribute, adding to params'
-          );
-        }
-        return '';
-      }
-    );
-
-    var group = params.replace(/\s+/gi, ' ').split(' ');
-    for (var i = 0; i < group.length; i++) {
-      if (group[i]) {
-        var combination = group[i].split('=');
-        result[
-          combination[0].replace(/\s*['"](.*)['"]\s*/, '$1')
-        ] = combination[1].replace(/\s*['"](.*)['"]\s*/, '$1');
-      }
-    }
-    return result;
-  }
-
-  function getSingleStyleFile(source) {
-    if (source) {
-      var file = fs.readFileSync(source);
-      if (logger) {
-        console.log('CSS Style FILE: \n', file);
-      }
-      return transformLinkBundleResponse(file);
-    } else {
-      throwError('ERROR: No source file specified.');
-    }
-  }
-
-  function getSingleScriptFile(source) {
-    if (source) {
-      var file = fs.readFileSync(source);
-      if (logger) {
-        console.log('JS Script FILE: \n', file);
-      }
-      return transformScriptBundleResponse(file);
-    } else {
-      throwError('ERROR: No source file specified.');
-    }
-  }
-
   function renewCachedAsset(file, enc, callback) {
-    if (logger) {
+    if (logger.DETAILED) {
       console.log('===');
       console.log('file:', file);
       console.log('file.contents', file.contents);
@@ -242,7 +238,7 @@ module.exports = function(option) {
       this.emit(
         'error',
         new gutil.PluginError(
-          'gulp-file-inject',
+          'gulp-renew-cached-assets',
           'Stream content is not supported'
         )
       );
@@ -253,27 +249,159 @@ module.exports = function(option) {
     if (file.isBuffer()) {
       new gutil.log('file is buffer!');
 
-      if (logger) {
-        new gutil.log(
-          gutil.colors.yellow('Files path is: ') +
-            '\n' +
-            gutil.colors.magenta(file.path)
-        );
+      if (logger.DETAILED) {
+        new gutil.log(gutil.colors.yellow('Files path is: ') + '\n' + gutil.colors.magenta(file.path));
       } 
 
-      var dependentHTMLs = shell.grep('-l', '{{ static_url }}external/js/', 'templates/*/*.html');
 
-      // if (!dependentHTMLs) {
-      //   new gutil.log(('This asset: ' + file.base + ' has no dependent HTML files!')
+      // if (shell.exec("grep -il '{{ static_url }}external/js/' templates/*/*.html").code !== 0) {
+      //   new gutil.log('shell.exec: This asset: ' + file.base + ' has no dependent HTML files!');
       // } else {
-      //   new gutil.log(('$$$ GREP SUCCESS $$$');
-      //   new gutil.log(('Asset ' + file.base + ' has dependent HTMLs!\n' + dependentHTMLs);
+      //   new gutil.log('shell.exec: $$$ succeeded! $$$');
       // }
 
-      if (shell.exec("grep -il '{{ static_url }}external/js/' 'templates/*/*.html'").code !== 0) {
-        new gutil.log(('This asset: ' + file.base + ' has no dependent HTML files!');
+      // var fileRelativePathNormalized = file.relative.replace(/\\/g, '/');
+      // if (logger.DETAILED) { console.log('Normalized file.relative:', fileRelativePathNormalized); }
+
+      var relativePath = path.relative(option.static_assets_dir, path.relative(file.cwd, file.path));
+      if (logger.DETAILED) { console.log('relativePath:', relativePath); }
+
+      var relativePathNormalized = relativePath.replace(/\\/g, '/');
+      if (logger.IMPORTANT) { console.log('relativePathNormalized:', relativePathNormalized); }
+
+      var htmlTemplatesDir = option.html_templates_dir.replace(/^(\.\\|\\|\.\/|\/)/g, '');
+      if (logger.IMPORTANT) { console.log('htmlTemplatesDir:', htmlTemplatesDir); }
+
+      var assetPattern = option.prepend_static_path + relativePathNormalized;
+      if (logger.IMPORTANT) { console.log('assetPattern:', assetPattern); }
+
+      /**
+       * Находим все файлы .html в templates/ рекурсивно, в которых есть вхождение строки {{ static_url }} (регистронезависимое)
+       * и выводим файлы и строки вхождений, исключая папку __build/
+       * grep -ir '{{ static_url }}' templates/ --include='*.html' --exclude-dir='__build/'
+       * если нужно исключить несколько папок: --exclude-dir={__build/,external/}
+       *
+       * находим тоже самое, только ограничиваемся при выводе именами файлов,
+       * затем меняем для каждого из найденных файлов строку {{ static_url }} (регистронезависимо)  на строку {{ STATIC_URL }}
+       * grep -irl '{{ static_url }}' templates/ --include='*.html' | xargs sed -i 's/{{ static_url }}/{{ STATIC_URL }}/gi'
+       */
+
+      var shellCommand = "grep -irl '" + assetPattern +  "' " + htmlTemplatesDir + " --include=\\*.html --exclude-dir={" + ignoredTemplatesDirs + "}";
+      if (logger.IMPORTANT) { console.log('shellCommand:', shellCommand); }
+
+      var dependentHTMLs = shell.exec(shellCommand).stdout;
+      if (!dependentHTMLs) {
+        if (logger.IMPORTANT) { new gutil.log('shell.exec2: This asset: ' + file.relative + ' has no dependent HTML files!\n\n'); }
       } else {
-        new gutil.log(('$$$ GREP SUCCESS $$$');
+        var dependentHTMLsArr = dependentHTMLs.split('\n').filter(function(htmlFileName) { return htmlFileName });
+
+        if (logger.IMPORTANT) { new gutil.log('shell.exec2: $$$ succeeded! $$$'); }
+        if (logger.DETAILED) { new gutil.log('shell.exec2: Asset ' + file.relative + ' has dependent HTMLs!\n' + dependentHTMLs); }
+        if (logger.IMPORTANT) { new gutil.log('dependentHTMLsArr:', dependentHTMLsArr); }
+
+        var initialVersionNumber = 1;
+        var taskStartTimeStamp = new Date().getTime();
+        if (logger.IMPORTANT) { console.log('Task started at:', taskStartTimeStamp); }
+
+        dependentHTMLsArr.forEach(function(htmlFileName) {
+          var htmlFileContent = String(fs.readFileSync(htmlFileName));
+
+          if (logger.DETAILED) {
+            console.log('\n');
+            console.log(htmlFileContent);
+          }
+
+          // htmlFileContent.replace(new RegExp(JS_SCRIPT_SRC_PATTERN, 'gi'), '');
+          // console.log('===============\n' + htmlFileContent);
+          // console.log('htmlFileContent.match(new RegExp(JS_SCRIPT_SRC_PATTERN)):', htmlFileContent.match(new RegExp(JS_SCRIPT_SRC_PATTERN, 'gi')));
+
+          if (option.clear_assets_get_params) {
+            if (logger.IMPORTANT) { console.log('Gonna clear version GET parameters...'); }
+            var clearedHtmlFileContent = htmlFileContent.replace(new RegExp(assetPattern + ASSET_ATTR_SUFFIX_PATTERN, 'gi'), assetPattern);
+            if (logger.DETAILED) {
+              console.log('clearedHtmlFileContent:\n');
+              console.log(clearedHtmlFileContent);
+            }
+            fs.writeFileSync(htmlFileName, clearedHtmlFileContent);
+            return;
+          }
+          var newVersionGETParam = createVersionGETParam(taskStartTimeStamp, initialVersionNumber);
+          var versionMatchesArr = htmlFileContent.match(assetPattern + VERSION_OF_ASSET_PATTERN, 'gi');
+          if (logger.DETAILED) { console.log('versionMatchesArr:', versionMatchesArr); }
+          if (versionMatchesArr) {
+            var versionGETParam = versionMatchesArr[1];
+            if (logger.IMPORTANT) { console.log('versionGETParam:', versionGETParam); }
+            if (versionGETParam) {
+              var oldVersionNumber = getVersionNumber(versionGETParam);
+              if (logger.IMPORTANT) { console.log('oldVersionNumber:', oldVersionNumber); }
+              var newVersionNumber = oldVersionNumber + 1;
+              if (logger.IMPORTANT) { console.log('newVersionNumber:', newVersionNumber); }
+              newVersionGETParam = createVersionGETParam(taskStartTimeStamp, newVersionNumber);
+              if (logger.IMPORTANT) { console.log('newVersionGETParam:', newVersionGETParam); }
+            } else {
+              if (logger.IMPORTANT) { console.log('No version GET parameter!, Use initial:', newVersionGETParam); }
+            }
+          } else {
+            if (logger.IMPORTANT) {
+              console.log('No match for version GET param regexp...');
+              console.log('Use initial:', newVersionGETParam);
+            }
+          }
+          if (logger.IMPORTANT) { console.log('Get asset suffix'); }
+          var assetAttrSuffixMatchesArr = htmlFileContent.match(assetPattern + ASSET_ATTR_SUFFIX_PATTERN, 'gi');
+          if (logger.DETAILED) { console.log('assetAttrSuffixMatchesArr:', assetAttrSuffixMatchesArr); }
+          if (assetAttrSuffixMatchesArr) {
+            var assetAttrSuffix = assetAttrSuffixMatchesArr[1];
+            if (logger.IMPORTANT) {
+              console.log('assetAttrSuffix:', assetAttrSuffix);
+              console.log('replace it with this value:', newVersionGETParam);
+            }
+            var newHtmlFileContent = htmlFileContent.replace(new RegExp(assetPattern + ASSET_ATTR_SUFFIX_PATTERN, 'gi'), assetPattern + newVersionGETParam);
+            if (logger.DETAILED) { console.log('===============\n', newHtmlFileContent); }
+            if (logger.IMPORTANT) { console.log('Replacing HTML file contents...\n'); }
+            fs.writeFileSync(htmlFileName, newHtmlFileContent);
+
+            if (option.use_git_add) {
+              var gitAddCommand = 'git add ' + htmlFileName;
+              if (logger.IMPORTANT) { console.log('gitAddCommand:', gitAddCommand); }
+              shell.exec(gitAddCommand);
+            }
+
+          } else {
+            if (logger.IMPORTANT) { console.log('ERROR: no assetAttrSuffixMatchesArr!!!'); }
+            this.emit('error', new gutil.PluginError(
+              'gulp-renew-cached-assets',
+              ' ERROR: ' + assetPattern + ' + ASSET_ATTR_SUFFIX_PATTERN regexp match couldn grep any entries from HTML !!!'
+            ));
+          }
+
+          function getVersionNumber(getParam) {
+            if (logger.DETAILED) {
+              var getParamContents = getParam.split('.');
+              console.log('getParamContents:', getParamContents);
+              var versionStr = getParamContents[0];
+              console.log('versionStr', versionStr);
+            }
+            var result = parseInt(getParam.split('.')[0], 10);
+            return isNaN(result) ? 0 : result; 
+          }
+
+          function createVersionGETParam(timeStamp, versionNumber) {
+            if (versionNumber && timeStamp) {
+              return '?v=' + versionNumber + '.' + timeStamp;
+            } else if (versionNumber) {
+              return '?v=' + versionNumber + '.' + new Date().getTime();
+            } else if (timeStamp) {
+              return '?v=1.' + timeStamp;
+            } else {
+              return '?v=1.' + new Date().getTime();
+            }
+          }
+
+        });
+
+        if (logger.IMPORTANT) { console.log('\n'); }
+
       }
 
       this.push(file);
