@@ -279,8 +279,9 @@ module.exports = function(option) {
         var initialVersionNumber = 1;
         var taskStartTimeStamp = new Date().getTime();
         var taskStartDate = new Date(taskStartTimeStamp).toLocaleDateString();
+        taskStartDate = taskStartDate.replace(/\//g, '-');
         var taskStartTime = new Date(taskStartTimeStamp).toLocaleTimeString();
-        taskStartTime = taskStartTime.replace(/:/gi, '-');
+        taskStartTime = taskStartTime.replace(/:/g, '-').replace(/\s.*/g, '');
 
         if (logger.IMPORTANT) { console.log('Task started at:', taskStartTimeStamp); }
 
