@@ -103,39 +103,39 @@ module.exports = function(option) {
     option.static_assets_dir = '';
   }
 
-  if (option.django_static_variable) {
-    try {
-      option.django_static_variable = '{{ ' +
-        option.django_static_variable +
-        ' }}';
-    } catch (e) {
-      this.emit(
-        'error',
-        new gutil.PluginError(
-          'gulp-renew-cached-assets',
-          ' Invalid `django_static_variable` parameter. String required.'
-        )
-      );
-    }
-  } else {
-    option.django_static_variable = '{{ STATIC_URL }}';
-  }
+  // if (option.django_static_variable) {
+  //   try {
+  //     option.django_static_variable = '{{ ' +
+  //       option.django_static_variable +
+  //       ' }}';
+  //   } catch (e) {
+  //     this.emit(
+  //       'error',
+  //       new gutil.PluginError(
+  //         'gulp-renew-cached-assets',
+  //         ' Invalid `django_static_variable` parameter. String required.'
+  //       )
+  //     );
+  //   }
+  // } else {
+  //   option.django_static_variable = '{{ STATIC_URL }}';
+  // }
 
-  if (option.django_ext_variable) {
-    try {
-      option.django_ext_variable = '{{ ' + option.django_ext_variable + ' }}';
-    } catch (e) {
-      this.emit(
-        'error',
-        new gutil.PluginError(
-          'gulp-renew-cached-assets',
-          ' Invalid `django_ext_variable` parameter. String required.'
-        )
-      );
-    }
-  } else {
-    option.django_ext_variable = '{{ STATIC_EXT }}';
-  }
+  // if (option.django_ext_variable) {
+  //   try {
+  //     option.django_ext_variable = '{{ ' + option.django_ext_variable + ' }}';
+  //   } catch (e) {
+  //     this.emit(
+  //       'error',
+  //       new gutil.PluginError(
+  //         'gulp-renew-cached-assets',
+  //         ' Invalid `django_ext_variable` parameter. String required.'
+  //       )
+  //     );
+  //   }
+  // } else {
+  //   option.django_ext_variable = '{{ STATIC_EXT }}';
+  // }
 
   if (option.prepend_static_path) {
     option.prepend_static_path = option.prepend_static_path.toString();
@@ -179,8 +179,8 @@ module.exports = function(option) {
     console.log('option.css_match_pattern = ' + option.css_match_pattern);
     console.log('option.js_match_pattern = ' + option.js_match_pattern);
     console.log('option.static_url_path = ' + option.static_url_path);
-    console.log('option.django_static_variable = ' + option.django_static_variable);
-    console.log('option.django_ext_variable = ' + option.django_ext_variable);
+    // console.log('option.django_static_variable = ' + option.django_static_variable);
+    // console.log('option.django_ext_variable = ' + option.django_ext_variable);
     console.log('option.prepend_static_path = ' + option.prepend_static_path);
     console.log('option.static_assets_dir = ' + option.static_assets_dir);
     console.log('option.html_templates_dir = ' + option.html_templates_dir);
