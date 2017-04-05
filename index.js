@@ -14,7 +14,6 @@ module.exports = function(option) {
     IMPORTANT: false
   };
 
-  var CONST_PATTERN = '<\\!--\\s*inject-style\\s*(.*?)\\s*-->';
   var CSS_LINK_PATTERN = '<link\\s*(.*?)\\s*>'; //'<link href='([^\\.]\\.css)'[^>]*>';
   var JS_SCRIPT_PATTERN = '<script\\s*(.*?)\\s*></script>';
 
@@ -38,22 +37,6 @@ module.exports = function(option) {
 
   if (!option.path) {
     option.path = '';
-  }
-
-  if (option.match_pattern) {
-    try {
-      new RegExp(option.match_pattern);
-    } catch (e) {
-      this.emit(
-        'error',
-        new gutil.PluginError(
-          'gulp-renew-cached-assets',
-          ' Invalid `match_pattern` parameter. Regular expression string required.'
-        )
-      );
-    }
-  } else {
-    option.match_pattern = CONST_PATTERN;
   }
 
   if (option.css_match_pattern) {
@@ -204,7 +187,8 @@ module.exports = function(option) {
     console.log('option.ignored_templates_dirs = ' + option.ignored_templates_dirs);
     console.log('ignoredTemplatesDirs = ' + ignoredTemplatesDirs);
     console.log('option.clear_assets_get_params = ' + option.clear_assets_get_params);
-    console.log('option.use_git_add = ' + option.use_git_add)
+    console.log('option.use_git_add = ' + option.use_git_add);
+    console.log('option.version_stamp = ' + option.version_stamp);
   }
 
   function throwError(msg) {
@@ -251,14 +235,7 @@ module.exports = function(option) {
 
       if (logger.DETAILED) {
         new gutil.log(gutil.colors.yellow('Files path is: ') + '\n' + gutil.colors.magenta(file.path));
-      } 
-
-
-      // if (shell.exec("grep -il '{{ static_url }}external/js/' templates/*/*.html").code !== 0) {
-      //   new gutil.log('shell.exec: This asset: ' + file.base + ' has no dependent HTML files!');
-      // } else {
-      //   new gutil.log('shell.exec: $$$ succeeded! $$$');
-      // }
+      }
 
       // var fileRelativePathNormalized = file.relative.replace(/\\/g, '/');
       // if (logger.DETAILED) { console.log('Normalized file.relative:', fileRelativePathNormalized); }
@@ -301,6 +278,10 @@ module.exports = function(option) {
 
         var initialVersionNumber = 1;
         var taskStartTimeStamp = new Date().getTime();
+        var taskStartDate = new Date(taskStartTimeStamp).toLocaleDateString();
+        var taskStartTime = new Date(taskStartTimeStamp).toLocaleTimeString();
+        taskStartTime = taskStartTime.replace(/:/gi, '-');
+
         if (logger.IMPORTANT) { console.log('Task started at:', taskStartTimeStamp); }
 
         dependentHTMLsArr.forEach(function(htmlFileName) {
@@ -310,10 +291,6 @@ module.exports = function(option) {
             console.log('\n');
             console.log(htmlFileContent);
           }
-
-          // htmlFileContent.replace(new RegExp(JS_SCRIPT_SRC_PATTERN, 'gi'), '');
-          // console.log('===============\n' + htmlFileContent);
-          // console.log('htmlFileContent.match(new RegExp(JS_SCRIPT_SRC_PATTERN)):', htmlFileContent.match(new RegExp(JS_SCRIPT_SRC_PATTERN, 'gi')));
 
           if (option.clear_assets_get_params) {
             if (logger.IMPORTANT) { console.log('Gonna clear version GET parameters...'); }
@@ -339,12 +316,36 @@ module.exports = function(option) {
             var versionGETParam = versionMatchesArr[1];
             if (logger.IMPORTANT) { console.log('versionGETParam:', versionGETParam); }
             if (versionGETParam) {
-              var oldVersionNumber = getVersionNumber(versionGETParam);
-              if (logger.IMPORTANT) { console.log('oldVersionNumber:', oldVersionNumber); }
-              var newVersionNumber = oldVersionNumber + 1;
-              if (logger.IMPORTANT) { console.log('newVersionNumber:', newVersionNumber); }
-              newVersionGETParam = createVersionGETParam(taskStartTimeStamp, newVersionNumber);
-              if (logger.IMPORTANT) { console.log('newVersionGETParam:', newVersionGETParam); }
+              if (option.version_stamp === 'date') {
+                if (logger.IMPORTANT) { console.log('Setting date as version stamp!'); }
+                var todaysVersionDate = getVersionDate(versionGETParam);
+                if (logger.IMPORTANT) { console.log('todaysVersionDate:', todaysVersionDate); }
+                if (todaysVersionDate === taskStartDate) {
+                  // newVersionGETParam = versionGETParam;
+                  return;
+                } else {
+                  newVersionGETParam = createDateGETParam(taskStartDate);
+                  if (logger.IMPORTANT) { console.log('newVersionGETParam:', newVersionGETParam); }
+                }
+              } else if (option.version_stamp === 'date.time') {
+                if (logger.IMPORTANT) { console.log('Setting date.time as version stamp!'); }
+                if (versionGETParam === taskStartDate + '.' + taskStartTime) {
+                  console.log('\n!!!!!\nSTRANGE BEHVIOUR!!! \n!!!!!\n');
+                  // newVersionGETParam = versionGETParam;
+                  return;
+                } else {
+                  newVersionGETParam = createDateTimeGETParam(taskStartDate + '.' + taskStartTime);
+                  if (logger.IMPORTANT) { console.log('newVersionGETParam:', newVersionGETParam); }
+                }
+              } else if (option.version_stamp === 'number.timestamp') {
+                if (logger.IMPORTANT) { console.log('Setting number.timestamp as version stamp!'); }
+                var oldVersionNumber = getVersionNumber(versionGETParam);
+                if (logger.IMPORTANT) { console.log('oldVersionNumber:', oldVersionNumber); }
+                var newVersionNumber = oldVersionNumber + 1;
+                if (logger.IMPORTANT) { console.log('newVersionNumber:', newVersionNumber); }
+                newVersionGETParam = createVersionGETParam(taskStartTimeStamp, newVersionNumber);
+                if (logger.IMPORTANT) { console.log('newVersionGETParam:', newVersionGETParam); }
+              }
             } else {
               if (logger.IMPORTANT) { console.log('No version GET parameter!, Use initial:', newVersionGETParam); }
             }
@@ -382,6 +383,47 @@ module.exports = function(option) {
             ));
           }
 
+          function getVersionDate(getParam) {
+            if (logger.DETAILED) {
+              var getParamContents = getParam.split('.');
+              console.log('getParamContents:', getParamContents);
+              var versionDateStr = getParamContents[0];
+              console.log('versionDateStr', versionDateStr);
+            }
+            var result = getParam.split('.')[0];
+            return result;
+          }
+
+          function createDateGETParam(versionDate) {
+            if (versionDate) {
+              return '?v=' + versionDate;
+            } else {
+              return '?v=' + new Date().toLocaleDateString();
+            }
+          }
+
+          function getVersionTime(getParam) {
+            if (logger.DETAILED) {
+              var getParamContents = getParam.split('.');
+              console.log('getParamContents:', getParamContents);
+              var versionTimeStr = getParamContents[1];
+              console.log('versionTimeStr', versionTimeStr);
+            }
+            var result = getParam.split('.')[1];
+            return result;
+          }
+
+          function createDateTimeGETParam(versionDateTime) {
+            if (versionDateTime) {
+              return '?v=' + versionDateTime;
+            } else {
+              var nowDate = new Date().toLocaleDateString();
+              var nowTime = new Date().toLocaleTimeString();
+              nowTime = nowTime.replace(/:/gi, '-');
+              return '?v=' + nowDate + '.' + nowTime;
+            }
+          }
+
           function getVersionNumber(getParam) {
             if (logger.DETAILED) {
               var getParamContents = getParam.split('.');
@@ -389,8 +431,8 @@ module.exports = function(option) {
               var versionStr = getParamContents[0];
               console.log('versionStr', versionStr);
             }
-            var result = parseInt(getParam.split('.')[0], 10);
-            return isNaN(result) ? 0 : result; 
+            var result = Number(getParam.split('.')[0], 10);
+            return isNaN(result) ? 0 : result;
           }
 
           function createVersionGETParam(timeStamp, versionNumber) {
