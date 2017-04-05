@@ -152,9 +152,9 @@ module.exports = function(option) {
   var ignoredTemplatesDirs = '';
   if (option.ignored_templates_dirs) {
     var ignoredTemplatesDirsArr = option.ignored_templates_dirs.map(function(dir) {
-      return dir.replace(new RegExp(option.static_assets_dir, 'gi'), '');
+      return '--exclude-dir=' + dir.replace(new RegExp(option.static_assets_dir, 'gi'), '');
     });
-    ignoredTemplatesDirs = ignoredTemplatesDirsArr.join(',');
+    ignoredTemplatesDirs = ignoredTemplatesDirsArr.join(' ');
   }
 
   if (option.clear_assets_get_params) {
@@ -263,7 +263,7 @@ module.exports = function(option) {
        * grep -irl '{{ static_url }}' templates/ --include='*.html' | xargs sed -i 's/{{ static_url }}/{{ STATIC_URL }}/gi'
        */
 
-      var shellCommand = "grep -irl '" + assetPattern +  "' " + htmlTemplatesDir + " --include=\\*.html --exclude-dir={" + ignoredTemplatesDirs + "}";
+      var shellCommand = "grep -irl '" + assetPattern +  "' " + htmlTemplatesDir + " --include=\\*.html " + ignoredTemplatesDirs;
       if (logger.IMPORTANT) { console.log('shellCommand:', shellCommand); }
 
       var dependentHTMLs = shell.exec(shellCommand).stdout;
